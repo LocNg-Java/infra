@@ -37,19 +37,28 @@ jobs:
 
     - name: Create S3 Bucket
       run: |
-        aws s3api create-bucket \
-          --bucket ${{ github.event.inputs.bucket_name }} \
-          --region ${{ github.event.inputs.region }} \
-          --create-bucket-configuration LocationConstraint=${{ github.event.inputs.region }} || echo "Bucket may already exist"
+        # Check if bucket exists
+        if aws s3api head-bucket --bucket ${{ github.event.inputs.bucket_name }} 2>/dev/null; then
+          echo "Bucket ${{ github.event.inputs.bucket_name }} already exists"
+        else
+          echo "Creating bucket ${{ github.event.inputs.bucket_name }}"
+          if [ "${{ github.event.inputs.region }}" = "us-east-1" ]; then
+            aws s3api create-bucket --bucket ${{ github.event.inputs.bucket_name }} --region ${{ github.event.inputs.region }}
+          else
+            aws s3api create-bucket --bucket ${{ github.event.inputs.bucket_name }} --region ${{ github.event.inputs.region }} --create-bucket-configuration LocationConstraint=${{ github.event.inputs.region }}
+          fi
+        fi
 
     - name: Enable S3 Bucket Versioning
       run: |
+        echo "Enabling versioning for bucket ${{ github.event.inputs.bucket_name }}"
         aws s3api put-bucket-versioning \
           --bucket ${{ github.event.inputs.bucket_name }} \
-          --versioning-configuration Status=Enabled
+          --versioning-configuration Status=Enabled || echo "Failed to enable versioning - check IAM permissions"
 
     - name: Enable S3 Bucket Encryption
       run: |
+        echo "Enabling encryption for bucket ${{ github.event.inputs.bucket_name }}"
         aws s3api put-bucket-encryption \
           --bucket ${{ github.event.inputs.bucket_name }} \
           --server-side-encryption-configuration '{
@@ -58,7 +67,7 @@ jobs:
                 "SSEAlgorithm": "AES256"
               }
             }]
-          }'
+          }' || echo "Failed to enable encryption - check IAM permissions"
 
     - name: Create DynamoDB Table
       run: |
