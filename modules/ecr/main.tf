@@ -42,26 +42,27 @@ resource "aws_ecr_lifecycle_policy" "policy" {
 }
 
 # ECR Repository Policy (optional - allows pull from EKS)
-resource "aws_ecr_repository_policy" "policy" {
-  for_each = var.allow_pull_from_accounts != [] ? toset(var.repository_names) : []
+# Temporarily disabled to avoid policy format issues
+# resource "aws_ecr_repository_policy" "policy" {
+#   for_each = var.allow_pull_from_accounts != [] ? toset(var.repository_names) : []
 
-  repository = aws_ecr_repository.repos[each.key].name
+#   repository = aws_ecr_repository.repos[each.key].name
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Sid    = "AllowPull"
-        Effect = "Allow"
-        Principal = {
-          AWS = [for account in var.allow_pull_from_accounts : "arn:aws:iam::${account}:root"]
-        }
-        Action = [
-          "ecr:GetDownloadUrlForLayer",
-          "ecr:BatchGetImage",
-          "ecr:BatchCheckLayerAvailability"
-        ]
-      }
-    ]
-  })
-}
+#   policy = jsonencode({
+#     Version = "2012-10-17"
+#     Statement = [
+#       {
+#         Sid    = "AllowPull"
+#         Effect = "Allow"
+#         Principal = {
+#           AWS = [for account in var.allow_pull_from_accounts : "arn:aws:iam::${account}:root"]
+#         }
+#         Action = [
+#           "ecr:GetDownloadUrlForLayer",
+#           "ecr:BatchGetImage",
+#           "ecr:BatchCheckLayerAvailability"
+#         ]
+#       }
+#     ]
+#   })
+# }

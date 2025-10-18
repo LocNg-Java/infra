@@ -56,26 +56,26 @@ resource "aws_subnet" "private" {
 }
 
 resource "aws_eip" "nat" {
-  count  = var.enable_nat_gateway ? length(var.availability_zones) : 0
+  count  = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.availability_zones)) : 0
   domain = "vpc"
 
   tags = merge(
     var.tags,
     {
-      Name = "${var.name_prefix}-nat-eip-${count.index + 1}"
+      Name = var.single_nat_gateway ? "${var.name_prefix}-nat-eip" : "${var.name_prefix}-nat-eip-${count.index + 1}"
     }
   )
 }
 
 resource "aws_nat_gateway" "main" {
-  count         = var.enable_nat_gateway ? length(var.availability_zones) : 0
+  count         = var.enable_nat_gateway ? (var.single_nat_gateway ? 1 : length(var.availability_zones)) : 0
   allocation_id = aws_eip.nat[count.index].id
   subnet_id     = aws_subnet.public[count.index].id
 
   tags = merge(
     var.tags,
     {
-      Name = "${var.name_prefix}-nat-${count.index + 1}"
+      Name = var.single_nat_gateway ? "${var.name_prefix}-nat-gateway" : "${var.name_prefix}-nat-${count.index + 1}"
     }
   )
 
@@ -104,7 +104,7 @@ resource "aws_route_table" "private" {
 
   route {
     cidr_block     = "0.0.0.0/0"
-    nat_gateway_id = var.enable_nat_gateway ? aws_nat_gateway.main[count.index].id : null
+    nat_gateway_id = var.enable_nat_gateway ? (var.single_nat_gateway ? aws_nat_gateway.main[0].id : aws_nat_gateway.main[count.index].id) : null
   }
 
   tags = merge(

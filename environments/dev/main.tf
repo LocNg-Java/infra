@@ -76,6 +76,7 @@ module "vpc" {
   private_subnet_cidrs = var.private_subnet_cidrs
   availability_zones   = var.availability_zones
   enable_nat_gateway   = true
+  single_nat_gateway   = true  # Use single NAT Gateway to save Elastic IPs
   cluster_name         = local.cluster_name
 
   tags = local.common_tags

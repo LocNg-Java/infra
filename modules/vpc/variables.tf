@@ -32,6 +32,12 @@ variable "enable_nat_gateway" {
   default     = true
 }
 
+variable "single_nat_gateway" {
+  description = "Use single NAT Gateway for all private subnets (cost optimization)"
+  type        = bool
+  default     = true
+}
+
 variable "cluster_name" {
   description = "EKS cluster name for tagging"
   type        = string
