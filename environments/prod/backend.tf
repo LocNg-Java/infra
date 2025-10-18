@@ -1,11 +1,12 @@
 # Terraform backend configuration for storing state in S3
 # Uncomment and configure this after creating S3 bucket and DynamoDB table
+# Run: infra/scripts/setup-backend.sh first, then replace YOUR_ACCOUNT_ID below
 
 # terraform {
 #   backend "s3" {
-#     bucket         = "your-terraform-state-bucket"
+#     bucket         = "microservices-terraform-state-YOUR_ACCOUNT_ID"
 #     key            = "microservices/prod/terraform.tfstate"
-#     region         = "us-east-1"
+#     region         = "ap-southeast-1"
 #     encrypt        = true
 #     dynamodb_table = "terraform-state-lock"
 #   }
