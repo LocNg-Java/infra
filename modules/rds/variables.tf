@@ -21,7 +21,7 @@ variable "eks_security_group_id" {
 variable "engine_version" {
   description = "PostgreSQL engine version"
   type        = string
-  default     = "15.4"
+  default     = "15.3"
 }
 
 variable "instance_class" {

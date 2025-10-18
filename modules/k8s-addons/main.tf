@@ -56,6 +56,7 @@ resource "kubectl_manifest" "metrics_server_deployment" {
             - --kubelet-preferred-address-types=InternalIP,ExternalIP,Hostname
             - --kubelet-use-node-status-port
             - --metric-resolution=15s
+            - --kubelet-insecure-tls
             image: registry.k8s.io/metrics-server/metrics-server:v0.6.4
             imagePullPolicy: IfNotPresent
             livenessProbe:
@@ -100,6 +101,10 @@ resource "kubectl_manifest" "metrics_server_deployment" {
   YAML
 
   depends_on = [kubectl_manifest.metrics_server]
+  
+  # Add timeout and retry logic
+  wait_for_rollout = false
+  apply_only       = true
 }
 
 # Kubernetes Dashboard

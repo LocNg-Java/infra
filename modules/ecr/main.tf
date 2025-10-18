@@ -54,7 +54,7 @@ resource "aws_ecr_repository_policy" "policy" {
         Sid    = "AllowPull"
         Effect = "Allow"
         Principal = {
-          AWS = var.allow_pull_from_accounts
+          AWS = [for account in var.allow_pull_from_accounts : "arn:aws:iam::${account}:root"]
         }
         Action = [
           "ecr:GetDownloadUrlForLayer",
