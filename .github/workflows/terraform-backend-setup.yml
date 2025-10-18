@@ -1,0 +1,126 @@
+name: 'Setup Terraform Backend'
+
+on:
+  workflow_dispatch:
+    inputs:
+      bucket_name:
+        description: 'S3 bucket name for Terraform state'
+        required: true
+        default: 'microservices-terraform-state'
+      region:
+        description: 'AWS region'
+        required: true
+        default: 'us-east-1'
+      dynamodb_table:
+        description: 'DynamoDB table name for state locking'
+        required: true
+        default: 'terraform-state-lock'
+
+env:
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  setup-backend:
+    name: 'Setup Terraform Backend'
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Create S3 Bucket
+      run: |
+        aws s3api create-bucket \
+          --bucket ${{ github.event.inputs.bucket_name }} \
+          --region ${{ github.event.inputs.region }} \
+          --create-bucket-configuration LocationConstraint=${{ github.event.inputs.region }} || echo "Bucket may already exist"
+
+    - name: Enable S3 Bucket Versioning
+      run: |
+        aws s3api put-bucket-versioning \
+          --bucket ${{ github.event.inputs.bucket_name }} \
+          --versioning-configuration Status=Enabled
+
+    - name: Enable S3 Bucket Encryption
+      run: |
+        aws s3api put-bucket-encryption \
+          --bucket ${{ github.event.inputs.bucket_name }} \
+          --server-side-encryption-configuration '{
+            "Rules": [{
+              "ApplyServerSideEncryptionByDefault": {
+                "SSEAlgorithm": "AES256"
+              }
+            }]
+          }'
+
+    - name: Create DynamoDB Table
+      run: |
+        aws dynamodb create-table \
+          --table-name ${{ github.event.inputs.dynamodb_table }} \
+          --attribute-definitions AttributeName=LockID,AttributeType=S \
+          --key-schema AttributeName=LockID,KeyType=HASH \
+          --provisioned-throughput ReadCapacityUnits=5,WriteCapacityUnits=5 \
+          --region ${{ github.event.inputs.region }} || echo "Table may already exist"
+
+    - name: Update Backend Configuration
+      run: |
+        # Update dev environment
+        sed -i "s/your-terraform-state-bucket/${{ github.event.inputs.bucket_name }}/g" environments/dev/backend.tf
+        sed -i "s/terraform-state-lock/${{ github.event.inputs.dynamodb_table }}/g" environments/dev/backend.tf
+        
+        # Update prod environment
+        sed -i "s/your-terraform-state-bucket/${{ github.event.inputs.bucket_name }}/g" environments/prod/backend.tf
+        sed -i "s/terraform-state-lock/${{ github.event.inputs.dynamodb_table }}/g" environments/prod/backend.tf
+
+    - name: Uncomment Backend Configuration
+      run: |
+        # Uncomment backend configuration in dev
+        sed -i 's/^# terraform {/terraform {/g' environments/dev/backend.tf
+        sed -i 's/^#   backend "s3" {/  backend "s3" {/g' environments/dev/backend.tf
+        sed -i 's/^#     bucket/    bucket/g' environments/dev/backend.tf
+        sed -i 's/^#     key/    key/g' environments/dev/backend.tf
+        sed -i 's/^#     region/    region/g' environments/dev/backend.tf
+        sed -i 's/^#     encrypt/    encrypt/g' environments/dev/backend.tf
+        sed -i 's/^#     dynamodb_table/    dynamodb_table/g' environments/dev/backend.tf
+        sed -i 's/^#   }/  }/g' environments/dev/backend.tf
+        sed -i 's/^# }/}/g' environments/dev/backend.tf
+        
+        # Uncomment backend configuration in prod
+        sed -i 's/^# terraform {/terraform {/g' environments/prod/backend.tf
+        sed -i 's/^#   backend "s3" {/  backend "s3" {/g' environments/prod/backend.tf
+        sed -i 's/^#     bucket/    bucket/g' environments/prod/backend.tf
+        sed -i 's/^#     key/    key/g' environments/prod/backend.tf
+        sed -i 's/^#     region/    region/g' environments/prod/backend.tf
+        sed -i 's/^#     encrypt/    encrypt/g' environments/prod/backend.tf
+        sed -i 's/^#     dynamodb_table/    dynamodb_table/g' environments/prod/backend.tf
+        sed -i 's/^#   }/  }/g' environments/prod/backend.tf
+        sed -i 's/^# }/}/g' environments/prod/backend.tf
+
+    - name: Commit Changes
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add environments/*/backend.tf
+        git commit -m "Configure Terraform backend with S3 and DynamoDB" || echo "No changes to commit"
+        git push
+
+    - name: Setup Summary
+      run: |
+        echo "## Terraform Backend Setup Complete ✅" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Created Resources:" >> $GITHUB_STEP_SUMMARY
+        echo "- **S3 Bucket**: \`${{ github.event.inputs.bucket_name }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **DynamoDB Table**: \`${{ github.event.inputs.dynamodb_table }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Region**: \`${{ github.event.inputs.region }}\`" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Next Steps:" >> $GITHUB_STEP_SUMMARY
+        echo "1. Run \`terraform init -migrate-state\` in each environment directory" >> $GITHUB_STEP_SUMMARY
+        echo "2. Verify state migration was successful" >> $GITHUB_STEP_SUMMARY
+        echo "3. You can now use the Terraform workflows for plan/apply/destroy" >> $GITHUB_STEP_SUMMARY

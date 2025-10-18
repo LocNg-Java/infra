@@ -1,0 +1,94 @@
+name: 'Terraform Apply'
+
+on:
+  push:
+    branches: [ main, develop ]
+    paths:
+      - '**'
+      - '.github/workflows/terraform-*.yml'
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to apply'
+        required: true
+        default: 'dev'
+        type: choice
+        options:
+        - dev
+        - prod
+      auto_approve:
+        description: 'Auto approve the apply'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  TF_VERSION: '1.5.7'
+  AWS_REGION: 'us-east-1'
+
+jobs:
+  terraform-apply:
+    name: 'Terraform Apply'
+    runs-on: ubuntu-latest
+    environment: ${{ github.event.inputs.environment || 'dev' }}
+    
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Setup Terraform
+      uses: hashicorp/setup-terraform@v3
+      with:
+        terraform_version: ${{ env.TF_VERSION }}
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Terraform Init
+      id: init
+      run: |
+        cd environments/${{ github.event.inputs.environment || 'dev' }}
+        terraform init
+
+    - name: Terraform Validate
+      id: validate
+      run: |
+        cd environments/${{ github.event.inputs.environment || 'dev' }}
+        terraform validate
+
+    - name: Terraform Plan
+      id: plan
+      run: |
+        cd environments/${{ github.event.inputs.environment || 'dev' }}
+        terraform plan -no-color -out=tfplan
+
+    - name: Terraform Apply
+      id: apply
+      run: |
+        cd environments/${{ github.event.inputs.environment || 'dev' }}
+        if [ "${{ github.event.inputs.auto_approve }}" == "true" ]; then
+          terraform apply -auto-approve tfplan
+        else
+          terraform apply tfplan
+        fi
+
+    - name: Output Terraform Outputs
+      if: steps.apply.outcome == 'success'
+      run: |
+        cd environments/${{ github.event.inputs.environment || 'dev' }}
+        terraform output -json > terraform-outputs.json
+        echo "## Terraform Outputs" >> $GITHUB_STEP_SUMMARY
+        echo '```json' >> $GITHUB_STEP_SUMMARY
+        cat terraform-outputs.json >> $GITHUB_STEP_SUMMARY
+        echo '```' >> $GITHUB_STEP_SUMMARY
+
+    - name: Upload Terraform Outputs
+      if: steps.apply.outcome == 'success'
+      uses: actions/upload-artifact@v4
+      with:
+        name: terraform-outputs-${{ github.event.inputs.environment || 'dev' }}
+        path: environments/${{ github.event.inputs.environment || 'dev' }}/terraform-outputs.json
