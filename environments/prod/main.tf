@@ -59,15 +59,15 @@ module "vpc" {
 module "eks" {
   source = "../../modules/eks"
 
-  cluster_name                = local.cluster_name
-  cluster_version             = var.eks_cluster_version
-  vpc_id                      = module.vpc.vpc_id
-  public_subnet_ids           = module.vpc.public_subnet_ids
-  private_subnet_ids          = module.vpc.private_subnet_ids
-  node_group_instance_types   = var.node_group_instance_types
-  node_group_desired_size     = var.node_group_desired_size
-  node_group_max_size         = var.node_group_max_size
-  node_group_min_size         = var.node_group_min_size
+  cluster_name              = local.cluster_name
+  cluster_version           = var.eks_cluster_version
+  vpc_id                    = module.vpc.vpc_id
+  public_subnet_ids         = module.vpc.public_subnet_ids
+  private_subnet_ids        = module.vpc.private_subnet_ids
+  node_group_instance_types = var.node_group_instance_types
+  node_group_desired_size   = var.node_group_desired_size
+  node_group_max_size       = var.node_group_max_size
+  node_group_min_size       = var.node_group_min_size
 
   tags = local.common_tags
 
@@ -85,9 +85,9 @@ module "ecr" {
     "react-frontend"
   ]
 
-  image_tag_mutability = "IMMUTABLE"  # Immutable for production
+  image_tag_mutability = "IMMUTABLE" # Immutable for production
   scan_on_push         = true
-  max_image_count      = 20           # Keep more images in prod
+  max_image_count      = 20 # Keep more images in prod
 
   tags = local.common_tags
 }
@@ -96,15 +96,15 @@ module "ecr" {
 module "rds" {
   source = "../../modules/rds"
 
-  name_prefix            = local.name_prefix
-  vpc_id                 = module.vpc.vpc_id
-  private_subnet_ids     = module.vpc.private_subnet_ids
-  eks_security_group_id  = module.eks.cluster_security_group_id
-  instance_class         = var.rds_instance_class
-  allocated_storage      = var.rds_allocated_storage
-  database_name          = var.rds_database_name
-  master_username        = var.rds_master_username
-  skip_final_snapshot    = false      # Keep snapshot for production
+  name_prefix           = local.name_prefix
+  vpc_id                = module.vpc.vpc_id
+  private_subnet_ids    = module.vpc.private_subnet_ids
+  eks_security_group_id = module.eks.cluster_security_group_id
+  instance_class        = var.rds_instance_class
+  allocated_storage     = var.rds_allocated_storage
+  database_name         = var.rds_database_name
+  master_username       = var.rds_master_username
+  skip_final_snapshot   = false # Keep snapshot for production
 
   tags = local.common_tags
 
@@ -115,10 +115,10 @@ module "rds" {
 module "iam" {
   source = "../../modules/iam"
 
-  cluster_name          = local.cluster_name
-  oidc_provider_arn     = module.eks.oidc_provider_arn
-  oidc_provider_url     = module.eks.cluster_oidc_issuer_url
-  secrets_manager_arns  = [module.rds.secrets_manager_secret_arn]
+  cluster_name         = local.cluster_name
+  oidc_provider_arn    = module.eks.oidc_provider_arn
+  oidc_provider_url    = module.eks.cluster_oidc_issuer_url
+  secrets_manager_arns = [module.rds.secrets_manager_secret_arn]
 
   tags = local.common_tags
 

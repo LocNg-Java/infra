@@ -101,7 +101,7 @@ resource "kubectl_manifest" "metrics_server_deployment" {
   YAML
 
   depends_on = [kubectl_manifest.metrics_server]
-  
+
   # Add timeout and retry logic
   wait_for_rollout = false
   apply_only       = true
